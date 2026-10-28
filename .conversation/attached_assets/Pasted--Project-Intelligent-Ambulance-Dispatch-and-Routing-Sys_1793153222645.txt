@@ -1,0 +1,404 @@
+# Project: Intelligent Ambulance Dispatch and Routing System
+
+## 1. Project Overview
+
+Build a complete, functional, simulation-based web application called **“Intelligent Ambulance Dispatch and Routing System”** using Python, Streamlit, NetworkX, Folium, and OpenStreetMap.
+
+The goal is to simulate how an intelligent emergency response system dispatches the most suitable ambulance to a patient's location and dynamically reroutes it when road incidents or traffic disruptions occur.
+
+This project is intended for academic demonstration and simulation purposes. It must demonstrate intelligent ambulance selection, road-network-based route planning, estimated travel times, incident detection, dynamic rerouting, and a clear visualization of the entire process.
+
+**Important: Use Streamlit as the primary user interface. Do not replace it with React, Flutter, or another frontend framework. Do not introduce FastAPI or a separate backend unless it becomes genuinely necessary.**
+
+Build the application as a working project, not merely a prototype with static screens.
+
+## 2. Required Technology Stack
+
+Use the following technologies:
+
+- **Python:** Core application logic and simulation.
+- **Streamlit:** Web interface and dashboard.
+- **Folium:** Interactive map visualization.
+- **streamlit-folium:** Display and interact with Folium maps in Streamlit.
+- **NetworkX:** Road graph representation and shortest-path calculations.
+- **OSMnx, if appropriate:** Optional support for downloading and processing real road networks from OpenStreetMap. If the existing implementation uses a custom Overpass API graph builder, preserve and improve it instead of unnecessarily rewriting it.
+- **Geopy:** Geographic distance calculations where appropriate.
+- **Requests:** Fetch road network data from OpenStreetMap's Overpass API.
+- **Python standard libraries:** Caching, data processing, validation, and simulation state management.
+
+Keep the application compatible with Replit's Python environment.
+
+## 3. Application Architecture
+
+Organize the project into reusable modules.
+
+Suggested structure:
+
+ambulance-routing-system/
+├── app.py
+├── simulation.py
+├── requirements.txt
+├── README.md
+└── .streamlit/
+    └── config.toml
+
+### app.py
+Contains the Streamlit user interface, sidebar controls, ambulance and patient inputs, map visualization, metrics, and simulation results.
+
+### simulation.py
+Contains reusable functions for:
+
+- Building or loading the road network.
+- Selecting the nearest suitable road-network nodes.
+- Finding the best ambulance for a patient.
+- Calculating shortest paths.
+- Estimating travel time.
+- Simulating incidents and road disruptions.
+- Applying incident penalties or blocking affected road edges.
+- Calculating alternative routes.
+- Returning route coordinates, metrics, and status information.
+
+Avoid placing the entire application in one large function. Keep the routing and simulation engine independent of Streamlit so it can be tested and reused.
+
+## 4. Intelligent Ambulance Dispatch
+
+Create a dispatch mechanism that selects an ambulance based on its suitability for responding to the emergency.
+
+Initially simulate at least three ambulances in a configurable geographic area around Thrissur, Kerala, India.
+
+Each ambulance should have:
+
+- A unique ambulance ID.
+- A current latitude and longitude.
+- An availability status.
+- An optional assigned-patient status.
+- A simulated operational state, such as available, dispatched, or responding.
+
+Allow the user to enter or adjust the patient's latitude and longitude.
+
+When the user clicks **“Find Best Ambulance”** or **“Dispatch Ambulance”**, the system should:
+
+1. Identify available ambulances.
+2. Calculate a feasible road route from each eligible ambulance to the patient.
+3. Estimate the travel time for each route.
+4. Compare the candidates.
+5. Select the ambulance with the lowest estimated response time among feasible candidates.
+6. Display the selected ambulance, route distance, estimated response time, and other candidates for comparison.
+
+Do not select an ambulance solely using straight-line geographic distance if road-network routes are available.
+
+If the road network or route calculation is unavailable, show a clear error or explicitly labelled fallback result rather than silently pretending that a road route was calculated.
+
+Make dispatch scoring modular so that future versions can incorporate emergency severity, ambulance capacity, equipment, hospital availability, or other factors.
+
+For the initial simulation, document the selection criteria and use only the factors that are actually implemented.
+
+## 5. Road Network and Route Calculation
+
+Use real road-network data from OpenStreetMap where available.
+
+The system should:
+
+1. Download the relevant road network using the existing graph-building logic or an appropriate OpenStreetMap library.
+2. Represent roads as a NetworkX graph.
+3. Associate road edges with distance and estimated travel-time weights.
+4. Find the nearest graph nodes to the ambulance and patient coordinates.
+5. Compute the fastest feasible route using Dijkstra's algorithm or another appropriate shortest-path algorithm.
+6. Convert the resulting graph path into geographic coordinates for map rendering.
+
+Use edge travel-time weights rather than relying only on the number of graph edges.
+
+If edge speeds are unavailable, use a configurable, clearly documented speed assumption. Treat resulting times as estimates, not live traffic predictions.
+
+Cache downloaded road networks where appropriate to avoid repeatedly querying the Overpass API whenever Streamlit reruns.
+
+Handle API timeouts, rate limits, invalid coordinates, missing routes, and empty graphs gracefully.
+
+If live road-network data cannot be fetched, explain the problem to the user. A deterministic offline demonstration mode may be provided, but clearly label it as simulated data.
+
+## 6. Dynamic Ambulance Rerouting
+
+This is one of the most important features of the project.
+
+Simulate road incidents that may affect the ambulance's planned route. Examples include:
+
+- A road obstruction.
+- A traffic slowdown.
+- An accident-related delay.
+- A temporary road closure.
+
+Provide simulation controls for:
+
+- Incident severity.
+- Incident confidence.
+- Confidence threshold.
+- Incident persistence.
+- Ambulance progress along the planned route.
+- Incident activation or deactivation.
+
+Use the existing simulation logic as the starting point if it already contains these parameters.
+
+### Required incident behavior
+
+1. Calculate the original shortest or fastest route.
+2. Display the original route on the map.
+3. Simulate an incident affecting an edge on that route.
+4. Evaluate whether the incident should trigger rerouting using the configured severity, confidence, threshold, persistence, and simulation progress.
+5. If the incident is not sufficiently confirmed or persistent, retain the original route.
+6. If the incident becomes active, modify the affected road edge's travel time or mark the edge as blocked.
+7. Recalculate a feasible route from the ambulance's current simulated position to the patient's location.
+8. Display the alternative route and calculate its estimated remaining travel time.
+9. Compare the original and adjusted travel times.
+10. Explain why rerouting occurred or why the original route was retained.
+
+Do not implement rerouting by simply reversing a route or drawing an arbitrary line to the destination. The alternative must be calculated using the road graph.
+
+### Important technical requirements
+
+- Preserve the original graph and create a modified copy for incident simulation.
+- Do not permanently modify the cached base graph.
+- Do not repeatedly multiply already modified edge weights on every rerun. Always calculate the modified weight from the original base weight.
+- Ensure a blocked edge cannot be selected as a valid route.
+- Check that a route exists before calculating its travel time.
+- Never return infinity or NaN as JSON-like data or display these as ordinary travel-time values.
+- Avoid restarting the entire simulation unexpectedly when a user changes a slider.
+- Make the incident state and ambulance progress consistent across Streamlit reruns.
+
+If the alternative route is impossible, display a clear message and preserve the last valid route or report that no feasible route exists.
+
+## 7. Simulation Controls in Streamlit
+
+Create a sidebar titled **“Simulation Controls”**.
+
+Include the following controls:
+
+### Patient details
+- Patient latitude.
+- Patient longitude.
+- Emergency severity.
+- Optional emergency description.
+
+### Ambulance settings
+- Ambulance selection or automatic selection.
+- Ambulance position or simulated progress.
+- Ambulance availability.
+
+### Incident settings
+- Incident severity.
+- Incident confidence.
+- Confidence threshold.
+- Incident persistence.
+- Incident activation toggle.
+
+Use sensible ranges, default values, and tooltips explaining what each parameter means.
+
+Add the following buttons:
+
+- **Find Best Ambulance**
+- **Dispatch Ambulance**
+- **Run Simulation**
+- **Simulate Road Incident**
+- **Recalculate Route**
+- **Reset Simulation**
+
+Use `st.session_state` or another appropriate approach to preserve simulation state between Streamlit reruns.
+
+Avoid using buttons that only change their label or show fake results. Each button must perform the corresponding action.
+
+## 8. Interactive Map
+
+Use Folium with `streamlit-folium` to display an interactive OpenStreetMap.
+
+The map must show:
+
+- All simulated ambulance locations.
+- The patient's location.
+- The selected ambulance.
+- The original route.
+- The rerouted path, when one exists.
+- The simulated incident location.
+- The ambulance's current simulated position.
+
+Use distinct colors for the original route and alternative route. Include a legend so the user understands each marker and route.
+
+The original and alternative routes should be independently identifiable.
+
+When rerouting occurs, display the changed route on the map and update the relevant metrics.
+
+Ensure the map recenters appropriately when the selected ambulance, patient, or route changes.
+
+Do not draw a straight line between the ambulance and patient and label it as a road route.
+
+## 9. Dashboard and Results
+
+Create a polished Streamlit dashboard with the title:
+
+**Intelligent Ambulance Dispatch and Routing System**
+
+Subtitle:
+
+*Simulation-based intelligent emergency dispatch and dynamic road rerouting.*
+
+Use a professional emergency-response dashboard design. Prefer a clean, readable layout with clear sections, consistent spacing, useful icons, and an appropriate emergency-response color palette.
+
+Display metric cards for:
+
+- Selected ambulance.
+- Estimated original travel time.
+- Estimated adjusted travel time.
+- Route distance.
+- Current simulation status.
+- Time saved or additional delay due to rerouting.
+
+Display a route comparison table with columns such as:
+
+| Metric | Original Route | Adjusted Route |
+|---|---|---|
+| Estimated travel time | Calculated value | Calculated value |
+| Route distance | Calculated value | Calculated value |
+| Incident affected | Yes/No | Yes/No |
+| Route status | Original | Alternative/Not required |
+
+Only display values that have actually been calculated. Use a clear unavailable state when a metric cannot be determined.
+
+Include a readable simulation log showing events such as:
+
+- Ambulance selected.
+- Original route calculated.
+- Incident introduced.
+- Incident confirmation evaluated.
+- Rerouting triggered or rejected.
+- Alternative route calculated.
+- Simulation completed.
+
+The log should reflect real actions taken by the simulation engine rather than fabricated messages.
+
+## 10. Intelligent Features and Metrics
+
+The project should demonstrate actual algorithmic behavior, not just map visualization.
+
+Implement and document:
+
+- Road-network-based ambulance selection.
+- Shortest or fastest path calculation.
+- Incident-aware route recalculation.
+- Confidence-based incident activation.
+- Persistence-based incident confirmation.
+- Route comparison before and after an incident.
+- Estimated response-time improvement or delay.
+- Ambulance progress along the route.
+- Feasibility checks for alternative paths.
+
+Calculate:
+
+Time difference = adjusted estimated travel time − original estimated travel time.
+
+A positive value indicates additional time; a negative value indicates a time saving.
+
+If the adjusted route is calculated from the ambulance's current position, compare it against the original route's remaining travel time from that same position, not against the original full trip duration. Keep elapsed time and remaining time separate.
+
+Do not claim that the application predicts real traffic or detects real accidents unless actual data sources are integrated. This is a simulation-only project, and its assumptions should be stated clearly.
+
+## 11. Validation and Error Handling
+
+Handle the following cases:
+
+- Invalid latitude or longitude.
+- Missing patient coordinates.
+- No available ambulances.
+- Road-network download failure.
+- Overpass API timeout.
+- Missing graph nodes.
+- No path between ambulance and patient.
+- Incident placed on an invalid edge.
+- Alternative route unavailable.
+- Invalid confidence or severity values.
+- Missing or invalid simulation state.
+
+Display friendly error messages in Streamlit.
+
+Do not crash the application when an external API is temporarily unavailable.
+
+Use caching carefully and do not cache mutable simulation state in a way that allows one simulation run to corrupt another.
+
+## 12. Requirements and Replit Configuration
+
+Create a complete `requirements.txt` with all required dependencies and compatible versions where appropriate.
+
+Ensure the project runs in Replit.
+
+Configure the Streamlit server to listen on `0.0.0.0` and use the port provided by the environment when appropriate.
+
+Provide the exact command required to start the app, typically:
+
+`streamlit run app.py --server.address 0.0.0.0 --server.port 8501`
+
+If Replit requires a different run configuration, configure it accordingly.
+
+Create a `.streamlit/config.toml` only if needed.
+
+## 13. Testing
+
+Add basic tests for the routing and rerouting functions.
+
+Use small synthetic NetworkX graphs for deterministic tests so the tests do not depend on the availability of the Overpass API.
+
+Test at least:
+
+1. The shortest-path function returns the expected path.
+2. The best ambulance is selected based on calculated road travel time.
+3. A low-confidence incident does not trigger rerouting.
+4. A confirmed incident triggers rerouting when an alternative route exists.
+5. A blocked edge is not used in the alternative route.
+6. The base graph remains unchanged after incident simulation.
+7. A missing route is handled safely.
+8. Travel-time comparisons use consistent remaining-trip estimates.
+
+Keep the tests independent of the Streamlit user interface.
+
+## 14. Documentation
+
+Create a `README.md` containing:
+
+- Project overview.
+- Features.
+- Architecture.
+- Technologies used.
+- Folder structure.
+- Installation instructions.
+- How to run on Replit.
+- How to use the simulation controls.
+- Explanation of the routing algorithm.
+- Explanation of incident confidence and persistence.
+- Travel-time estimation assumptions.
+- Known limitations.
+- Future enhancements.
+
+Clearly distinguish simulated values from real OpenStreetMap road data and live traffic data.
+
+## 15. Development Instructions
+
+Before implementing the project:
+
+1. Inspect any existing project files and reuse working code wherever possible.
+2. Preserve the current Streamlit-based architecture.
+3. If `app.py` and `simulation.py` already exist, improve them rather than creating conflicting duplicate implementations.
+4. Identify and fix bugs in route calculation, incident handling, graph modification, and travel-time comparison.
+5. Keep the routing logic reusable and testable.
+
+Then implement the complete application.
+
+Do not stop after generating a plan or a few code snippets. Create the actual project files, install or configure dependencies as appropriate, and attempt to run the application.
+
+After implementation:
+
+1. Check for Python syntax errors.
+2. Verify that imports work.
+3. Run the routing tests.
+4. Fix any errors you encounter.
+5. Confirm the correct run command.
+6. Explain which features are working and which require external OpenStreetMap access.
+
+If any feature cannot be completed, state the limitation explicitly rather than pretending it works.
+
+**Final goal:** Deliver a runnable Streamlit application that demonstrates intelligent ambulance dispatch, road-network-based route planning, incident-aware dynamic rerouting, and a clear comparison of original and alternative routes in an interactive map.
